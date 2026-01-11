@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Integration Bee - Host</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+</head>
+<body>
+  <h1>Integration Bee Host Display</h1>
+  <div id="status">Connected</div>
+  <div id="timer-display"></div>
+  <div id="problem-display"></div>
+  <div id="math-display"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    let countdownInterval = null;
+
+    socket.on('connect', () => {
+      console.log('Connected to server');
+      socket.emit('join');
+    });
+
+    socket.on('update_display', (data) => {
+      console.log('Update display event received:', data);
+      document.getElementById('status').textContent = data.message || 'Display updated';
+    });
+
+    socket.on('new_problem', (problem) => {
+      console.log('New problem received:', problem);
+      const problemDisplay = document.getElementById('problem-display');
+      try {
+        katex.render(problem, problemDisplay, { displayMode: true });
+      } catch (error) {
+        console.error('KaTeX render error:', error);
+        problemDisplay.textContent = problem;
+      }
+
+      // Start 3-minute countdown timer
+      let timeLeft = 180; // 3 minutes in seconds
+      const timerDisplay = document.getElementById('timer-display');
+      
+      // Clear any existing interval
+      if (countdownInterval) {
+        clearInterval(countdownInterval);
+      }
+
+      // Update timer display
+      function updateTimer() {
+        if (timeLeft <= 0) {
+          clearInterval(countdownInterval);
+          timerDisplay.textContent = 'Time\'s up!';
+          return;
+        }
+        
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+        timerDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        timeLeft--;
+      }
+
+      // Initial update
+      updateTimer();
+      
+      // Update every second
+      countdownInterval = setInterval(updateTimer, 1000);
+    });
+
+    socket.on('update_math', (data) => {
+      console.log('Update math event received:', data);
+      const mathDisplay = document.getElementById('math-display');
+      const equation = data || '\\dots';
+      try {
+        katex.render(equation, mathDisplay, { displayMode: true });
+      } catch (error) {
+        console.error('KaTeX render error:', error);
+        mathDisplay.textContent = equation;
+      }
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Disconnected from server');
+      if (countdownInterval) {
+        clearInterval(countdownInterval);
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Integration Bee - Remote</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+</head>
+<body>
+  <div id="local-display"></div>
+  <h1>Integration Bee Remote</h1>
+  <button class="start-btn" id="startButton">Start</button>
+  <div class="calculator">
+    <!-- Row 1: Clear, (, ), ^, Backspace -->
+    <button class="calc-btn calc-btn-control" data-value="clear">Clear</button>
+    <button class="calc-btn calc-btn-operator" data-value="(">(</button>
+    <button class="calc-btn calc-btn-operator" data-value=")">)</button>
+    <button class="calc-btn calc-btn-operator" data-value="^">^</button>
+    <button class="calc-btn calc-btn-control" data-value="delete">⌫</button>
+    
+    <!-- Row 1.5: Cursor keys -->
+    <button class="calc-btn calc-btn-operator" data-value="left">←</button>
+    <button class="calc-btn calc-btn-operator" data-value="right">→</button>
+    <button class="calc-btn calc-btn-empty"></button>
+    <button class="calc-btn calc-btn-empty"></button>
+    <button class="calc-btn calc-btn-empty"></button>
+    
+    <!-- Row 2: Variables - x, y, u, pi, e -->
+    <button class="calc-btn calc-btn-variable" data-value="x">x</button>
+    <button class="calc-btn calc-btn-variable" data-value="y">y</button>
+    <button class="calc-btn calc-btn-variable" data-value="u">u</button>
+    <button class="calc-btn calc-btn-variable" data-value="\\pi">π</button>
+    <button class="calc-btn calc-btn-variable" data-value="e">e</button>
+    
+    <!-- Row 3: sin, cos, tan, sqrt, / -->
+    <button class="calc-btn calc-btn-function" data-value="\\sin(">sin</button>
+    <button class="calc-btn calc-btn-function" data-value="\\cos(">cos</button>
+    <button class="calc-btn calc-btn-function" data-value="\\tan(">tan</button>
+    <button class="calc-btn calc-btn-function" data-value="\\sqrt{">√</button>
+    <button class="calc-btn calc-btn-operator" data-value="/">/</button>
+    
+    <!-- Row 4: 7, 8, 9, ln, * -->
+    <button class="calc-btn calc-btn-number" data-value="7">7</button>
+    <button class="calc-btn calc-btn-number" data-value="8">8</button>
+    <button class="calc-btn calc-btn-number" data-value="9">9</button>
+    <button class="calc-btn calc-btn-function" data-value="\\ln(">ln</button>
+    <button class="calc-btn calc-btn-operator" data-value="*">×</button>
+    
+    <!-- Row 5: 4, 5, 6, |x|, - -->
+    <button class="calc-btn calc-btn-number" data-value="4">4</button>
+    <button class="calc-btn calc-btn-number" data-value="5">5</button>
+    <button class="calc-btn calc-btn-number" data-value="6">6</button>
+    <button class="calc-btn calc-btn-function" data-value="abs(">|x|</button>
+    <button class="calc-btn calc-btn-operator" data-value="-">−</button>
+    
+    <!-- Row 6: 1, 2, 3, int, + -->
+    <button class="calc-btn calc-btn-number" data-value="1">1</button>
+    <button class="calc-btn calc-btn-number" data-value="2">2</button>
+    <button class="calc-btn calc-btn-number" data-value="3">3</button>
+    <button class="calc-btn calc-btn-function" data-value="\\int">∫</button>
+    <button class="calc-btn calc-btn-operator" data-value="+">+</button>
+    
+    <!-- Row 7: 0, ., dx, SUBMIT (spans 2 columns) -->
+    <button class="calc-btn calc-btn-number" data-value="0">0</button>
+    <button class="calc-btn calc-btn-number" data-value=".">.</button>
+    <button class="calc-btn calc-btn-function" data-value="dx">dx</button>
+    <button class="calc-btn submit-btn-in-grid" id="submitButton">SUBMIT</button>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+
+    socket.on('connect', () => {
+      console.log('Connected to server');
+      socket.emit('join');
+    });
+
+    // Handle update_math event - render LaTeX in local display
+    socket.on('update_math', (data) => {
+      console.log('Update math event received:', data);
+      const localDisplay = document.getElementById('local-display');
+      const equation = data || '\\dots';
+      try {
+        katex.render(equation, localDisplay, { displayMode: true });
+      } catch (error) {
+        console.error('KaTeX render error:', error);
+        localDisplay.textContent = equation;
+      }
+    });
+
+    // Handle Start button
+    const startButton = document.getElementById('startButton');
+    startButton.addEventListener('click', () => {
+      console.log('Start button clicked');
+      socket.emit('start_game');
+    });
+
+    // Handle Submit button
+    const submitButton = document.getElementById('submitButton');
+    submitButton.addEventListener('click', () => {
+      console.log('Submit button clicked');
+      socket.emit('submit');
+    });
+
+    // Handle calculator button clicks
+    document.querySelectorAll('.calc-btn').forEach(button => {
+      button.addEventListener('click', () => {
+        const value = button.getAttribute('data-value');
+        console.log('Button clicked:', value);
+        
+        // Send command events for clear/delete/left/right, keystroke for others
+        if (value === 'clear' || value === 'delete' || value === 'left' || value === 'right') {
+          if (value === 'delete') {
+            socket.emit('command', 'backspace');
+          } else if (value === 'clear') {
+            socket.emit('command', 'clear');
+          } else {
+            socket.emit('command', value); // left or right
+          }
+        } else {
+          socket.emit('keystroke', value);
+        }
+      });
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Disconnected from server');
+    });
+  </script>
+</body>
+</html>

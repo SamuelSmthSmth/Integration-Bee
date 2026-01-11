@@ -1,0 +1,17 @@
+{
+  "name": "integration-bee",
+  "version": "1.0.0",
+  "description": "Local Integration Bee app",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "mathjs": "^15.1.0",
+    "socket.io": "^4.7.2"
+  }
+}
